@@ -1,0 +1,70 @@
+trigger:
+  - main
+stages:
+  - stage: Build
+    jobs:
+      - job: Build
+        pool:
+          vmImage: 'ubuntu-latest'
+        steps:
+          - task: TerraformInstaller@1
+            inputs:
+                terraformVersion: 'latest'
+          - task: TerraformTask@5
+            displayName: TF init
+            inputs:
+              provider: 'azurerm'
+              command: 'init'
+              workingDirectory: $(System.DefaultWorkingDirectory)
+              backendServiceArm: 'SkillSoftCSS-lod50694403(e940ea4b-54ed-4e6d-8152-58495370ebbd)'
+              backendAzureRmResourceGroupName: 'demo-rg'
+              backendAzureRmUseEntraIdForAuthentication: false
+              backendAzureRmStorageAccountName: 'storage52070319'
+              backendAzureRmContainerName: 'sclab06'
+              backendAzureRmKey: 'demo-rg.terraform.tfstate'
+          - task: TerraformTask@5
+            displayName: TF validate
+            inputs:
+             provider: 'azurerm'
+             command: 'validate'
+
+          - task: TerraformTask@5
+            displayName: TF Plan
+            inputs:
+              provider: 'azurerm'
+              command: 'plan'
+              commandOptions: '-out=tfplan'
+              environmentServiceNameAzureRM: 'SkillSoftCSS-lod50694403(e940ea4b-54ed-4e6d-8152-58495370ebbd)'
+          - task: PublishBuildArtifacts@1
+            displayName: 'Publish Terraform Plan Artifact'
+            inputs:
+              pathToPublish: 'tfplan'
+              artifactName: 'terraform-plan'
+  - stage: Deploy
+    jobs:
+      - job: Deploy
+        pool:
+          vmImage: 'ubuntu-latest'
+        steps:
+        - task: TerraformInstaller@1
+          inputs:
+              terraformVersion: 'latest'
+        - task: TerraformTask@5
+          displayName: 'Terraform Init (Ensure state Sync)'
+          inputs:
+            provider: 'azurerm'
+            command: 'init'
+            commandOptions: '-reconfigure'
+            backendServiceArm: 'SkillSoftCSS-lod50694403(e940ea4b-54ed-4e6d-8152-58495370ebbd)'
+            backendAzureRmResourceGroupName: 'demo-rg'
+            backendAzureRmUseEntraIdForAuthentication: false
+            backendAzureRmStorageAccountName: 'storage52070319'
+            backendAzureRmContainerName: 'sclab06'
+            backendAzureRmKey: 'demo-rg.terraform.tfstate'
+        - task: TerraformTask@5
+          displayName: 'Terraform Apply'
+          inputs:
+            provider: 'azurerm'
+            command: 'apply'
+            commandOptions: '-auto-approve'
+            environmentServiceNameAzureRM: 'SkillSoftCSS-lod50694403(e940ea4b-54ed-4e6d-8152-58495370ebbd)'
